@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hit & Blow - AI 추천</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        text-align: center;
+        padding: 20px;
+      }
+      input[type="number"] {
+        width: 50px;
+        font-size: 16px;
+        text-align: center;
+      }
+      input.guess-input {
+        width: 40px;
+        text-align: center;
+        font-size: 18px;
+        margin: 0 5px;
+      }
+      button {
+        padding: 5px 10px;
+        font-size: 16px;
+      }
+      .log {
+        margin-top: 20px;
+        font-family: monospace;
+      }
+      label {
+        margin-right: 10px;
+      }
+      .config {
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎯 Hit & Blow - AI 추천</h1>
+    <div class="config">
+      <label>
+        <input type="checkbox" id="allowDuplicates" /> 숫자 중복 허용
+      </label>
+      <label>
+        최소 숫자:
+        <input type="number" id="minDigit" value="0" min="0" max="9" />
+      </label>
+      <label>
+        최대 숫자:
+        <input type="number" id="maxDigit" value="9" min="0" max="9" />
+      </label>
+      <label>
+        자릿수:
+        <input type="number" id="digitCount" value="4" min="1" max="10" />
+      </label>
+      <button onclick="init()">게임 시작</button>
+    </div>
+
+    <h3>AI 추천: <span id="recommend">계산 중...</span></h3>
+    <p>결과 입력 (Hit / Blow)</p>
+    <input type="number" id="hit" min="0" max="10" value="0" />
+    <input type="number" id="blow" min="0" max="10" value="0" />
+    <button onclick="submitResult()">제출</button>
+    <div class="log" id="log"></div>
+
+    <script>
+      let allCandidates = [];
+      let candidates = [];
+      let history = [];
+      let config = {
+        allowDuplicates: false,
+        minDigit: 0,
+        maxDigit: 9,
+        digitCount: 4,
+      };
+
+      function generateCandidates() {
+        const result = [];
+        const digits = [];
+        for (let i = config.minDigit; i <= config.maxDigit; i++) {
+          digits.push(i.toString());
+        }
+
+        function backtrack(path) {
+          if (path.length === config.digitCount) {
+            result.push(path);
+            return;
+          }
+          for (let d of digits) {
+            if (!config.allowDuplicates && path.includes(d)) continue;
+            backtrack(path + d);
+          }
+        }
+        backtrack("");
+        return result;
+      }
+
+      function getHitBlow(secret, guess) {
+        let hit = 0,
+          blow = 0;
+        const secretArr = secret.split("");
+        const guessArr = guess.split("");
+        for (let i = 0; i < config.digitCount; i++) {
+          if (guessArr[i] === secretArr[i]) hit++;
+          else if (secretArr.includes(guessArr[i])) blow++;
+        }
+        return [hit, blow];
+      }
+
+      function filterCandidates(candidates, guess, result) {
+        return candidates.filter((c) => {
+          const [h, b] = getHitBlow(c, guess);
+          return h === result[0] && b === result[1];
+        });
+      }
+
+      function recommendGuess(candidates) {
+        // 첫 추측은 빠르게: 사전 정의 또는 첫번째 후보
+        if (
+          history.length === 0 &&
+          !config.allowDuplicates &&
+          config.minDigit === 0 &&
+          config.maxDigit >= 3 &&
+          config.digitCount === 4
+        ) {
+          return "0123";
+        }
+
+        let bestGuess = candidates[0];
+        let minWorstCase = Infinity;
+        for (let guess of candidates) {
+          const partitions = {};
+          for (let actual of candidates) {
+            const key = getHitBlow(actual, guess).toString();
+            partitions[key] = (partitions[key] || 0) + 1;
+          }
+          const worst = Math.max(...Object.values(partitions));
+          if (worst < minWorstCase) {
+            minWorstCase = worst;
+            bestGuess = guess;
+          }
+        }
+        return bestGuess;
+      }
+
+      function submitResult() {
+        const h = parseInt(document.getElementById("hit").value);
+        const b = parseInt(document.getElementById("blow").value);
+        const guess = document.getElementById("recommend").innerText;
+
+        history.push(`${guess} ➤ ${h} Hit / ${b} Blow`);
+        document.getElementById("log").innerHTML = history
+          .map((line) => `🧠 ${line}`)
+          .join("<br>");
+
+        candidates = filterCandidates(candidates, guess, [h, b]);
+        if (candidates.length === 1 && h === config.digitCount) {
+          document.getElementById("recommend").innerText = "🎉 정답!";
+        } else if (candidates.length === 0) {
+          document.getElementById("recommend").innerText = "❌ 후보 없음";
+        } else {
+          setTimeout(() => {
+            document.getElementById("recommend").innerText =
+              recommendGuess(candidates);
+          }, 50);
+        }
+      }
+
+      function init() {
+        config.allowDuplicates =
+          document.getElementById("allowDuplicates").checked;
+        config.minDigit = parseInt(document.getElementById("minDigit").value);
+        config.maxDigit = parseInt(document.getElementById("maxDigit").value);
+        config.digitCount = parseInt(
+          document.getElementById("digitCount").value
+        );
+
+        allCandidates = generateCandidates();
+        candidates = [...allCandidates];
+        history = [];
+        document.getElementById("log").innerHTML = "";
+        document.getElementById("recommend").innerText = "계산 중...";
+
+        setTimeout(() => {
+          document.getElementById("recommend").innerText =
+            recommendGuess(candidates);
+        }, 100);
+      }
+
+      window.onload = init;
+    </script>
+  </body>
+</html>
