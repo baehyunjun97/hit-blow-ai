@@ -9,11 +9,18 @@
         font-family: "Segoe UI", sans-serif;
         text-align: center;
         padding: 20px;
+        max-width: 600px;
+        margin: auto;
+      }
+      h1 {
+        font-size: 24px;
       }
       input[type="number"] {
-        width: 50px;
-        font-size: 16px;
+        width: 60px;
+        font-size: 20px;
         text-align: center;
+        padding: 8px;
+        margin: 5px;
       }
       input.guess-input {
         width: 40px;
@@ -22,18 +29,29 @@
         margin: 0 5px;
       }
       button {
-        padding: 5px 10px;
-        font-size: 16px;
+        padding: 12px 20px;
+        font-size: 18px;
+        margin: 10px;
       }
       .log {
         margin-top: 20px;
         font-family: monospace;
+        font-size: 16px;
       }
       label {
-        margin-right: 10px;
+        margin: 5px;
+        display: block;
+        font-size: 16px;
       }
       .config {
-        margin: 10px 0;
+        margin: 15px 0;
+      }
+      @media (max-width: 480px) {
+        input[type="number"],
+        button {
+          width: 80%;
+          font-size: 22px;
+        }
       }
     </style>
   </head>
@@ -45,23 +63,63 @@
       </label>
       <label>
         최소 숫자:
-        <input type="number" id="minDigit" value="0" min="0" max="9" />
+        <input
+          type="number"
+          id="minDigit"
+          value="0"
+          min="0"
+          max="9"
+          inputmode="numeric"
+          pattern="\d*"
+        />
       </label>
       <label>
         최대 숫자:
-        <input type="number" id="maxDigit" value="9" min="0" max="9" />
+        <input
+          type="number"
+          id="maxDigit"
+          value="9"
+          min="0"
+          max="9"
+          inputmode="numeric"
+          pattern="\d*"
+        />
       </label>
       <label>
         자릿수:
-        <input type="number" id="digitCount" value="4" min="1" max="10" />
+        <input
+          type="number"
+          id="digitCount"
+          value="4"
+          min="1"
+          max="10"
+          inputmode="numeric"
+          pattern="\d*"
+        />
       </label>
       <button onclick="init()">게임 시작</button>
     </div>
 
     <h3>AI 추천: <span id="recommend">계산 중...</span></h3>
     <p>결과 입력 (Hit / Blow)</p>
-    <input type="number" id="hit" min="0" max="10" value="0" />
-    <input type="number" id="blow" min="0" max="10" value="0" />
+    <input
+      type="number"
+      id="hit"
+      min="0"
+      max="10"
+      value="0"
+      inputmode="numeric"
+      pattern="\d*"
+    />
+    <input
+      type="number"
+      id="blow"
+      min="0"
+      max="10"
+      value="0"
+      inputmode="numeric"
+      pattern="\d*"
+    />
     <button onclick="submitResult()">제출</button>
     <div class="log" id="log"></div>
 
@@ -102,10 +160,29 @@
           blow = 0;
         const secretArr = secret.split("");
         const guessArr = guess.split("");
-        for (let i = 0; i < config.digitCount; i++) {
-          if (guessArr[i] === secretArr[i]) hit++;
-          else if (secretArr.includes(guessArr[i])) blow++;
+        const secretUsed = Array(secretArr.length).fill(false);
+        const guessUsed = Array(guessArr.length).fill(false);
+
+        for (let i = 0; i < secretArr.length; i++) {
+          if (guessArr[i] === secretArr[i]) {
+            hit++;
+            secretUsed[i] = true;
+            guessUsed[i] = true;
+          }
         }
+
+        for (let i = 0; i < guessArr.length; i++) {
+          if (guessUsed[i]) continue;
+          for (let j = 0; j < secretArr.length; j++) {
+            if (!secretUsed[j] && guessArr[i] === secretArr[j]) {
+              blow++;
+              secretUsed[j] = true;
+              guessUsed[i] = true;
+              break;
+            }
+          }
+        }
+
         return [hit, blow];
       }
 
@@ -117,7 +194,6 @@
       }
 
       function recommendGuess(candidates) {
-        // 첫 추측은 빠르게: 사전 정의 또는 첫번째 후보
         if (
           history.length === 0 &&
           !config.allowDuplicates &&
@@ -146,8 +222,8 @@
       }
 
       function submitResult() {
-        const h = parseInt(document.getElementById("hit").value);
-        const b = parseInt(document.getElementById("blow").value);
+        const h = parseInt(document.getElementById("hit").value || "0");
+        const b = parseInt(document.getElementById("blow").value || "0");
         const guess = document.getElementById("recommend").innerText;
 
         history.push(`${guess} ➤ ${h} Hit / ${b} Blow`);
@@ -171,10 +247,14 @@
       function init() {
         config.allowDuplicates =
           document.getElementById("allowDuplicates").checked;
-        config.minDigit = parseInt(document.getElementById("minDigit").value);
-        config.maxDigit = parseInt(document.getElementById("maxDigit").value);
+        config.minDigit = parseInt(
+          document.getElementById("minDigit").value || "0"
+        );
+        config.maxDigit = parseInt(
+          document.getElementById("maxDigit").value || "9"
+        );
         config.digitCount = parseInt(
-          document.getElementById("digitCount").value
+          document.getElementById("digitCount").value || "4"
         );
 
         allCandidates = generateCandidates();
